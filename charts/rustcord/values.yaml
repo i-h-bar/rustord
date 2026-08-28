@@ -1,0 +1,12 @@
+secretName: app-secrets
+
+imagesHostPath: /var/mtg_cards/
+
+images:
+  postgres:
+    repository: postgres
+    tag: "18"
+
+postgres:
+  storage: 512Mi
+  resources: {}
