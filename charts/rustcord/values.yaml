@@ -12,6 +12,9 @@ images:
   bot:
     repository: gitfrog/rustcord
     tag: latest
+  notifier:
+    repository: gitfrog/rustcord-notifier
+    tag: latest
 
 postgres:
   storage: 512Mi
@@ -21,4 +24,7 @@ redis:
   resources: {}
 
 discordBot:
+  resources: {}
+
+notifier:
   resources: {}
