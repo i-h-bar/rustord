@@ -36,15 +36,7 @@ sudo systemctl restart k3s
 At this point existing pods will show networking errors — this is expected
 until Cilium's agent DaemonSet comes up in the next step.
 
-## 3. Find the node's IP address and update `cilium/values.yaml`
-
-```bash
-hostname -I | awk '{print $1}'
-```
-
-Replace `<NODE_IP>` in `cilium/values.yaml` with that address.
-
-## 4. Install Cilium
+## 3. Install Cilium
 
 From the dev machine (or the VM, wherever `helm` + a working `kubeconfig`
 pointing at this cluster are available):
@@ -53,7 +45,13 @@ pointing at this cluster are available):
 helm install cilium cilium/cilium --version 1.20.1 -n kube-system -f cilium/values.yaml
 ```
 
-## 5. Verify
+Note: `cilium/values.yaml`'s `k8sServiceHost: 127.0.0.1` is only used
+internally by the Cilium agent/operator pods (which run with
+`hostNetwork: true`) to reach the apiserver on their own node — it's
+unrelated to whatever address your local `kubeconfig` uses to reach the
+cluster for this `helm install` command itself.
+
+## 4. Verify
 
 Install the Cilium CLI if not already present, then:
 
@@ -66,7 +64,7 @@ Both should report healthy. `cilium connectivity test` creates temporary
 test pods and confirms basic pod-to-pod and pod-to-world connectivity works
 before any `CiliumNetworkPolicy` is applied.
 
-## 6. Observability while testing policies
+## 5. Observability while testing policies
 
 ```bash
 cilium hubble port-forward &
