@@ -6,7 +6,13 @@ images:
   postgres:
     repository: postgres
     tag: "18"
+  redis:
+    repository: redis
+    tag: 8-alpine
 
 postgres:
   storage: 512Mi
+  resources: {}
+
+redis:
   resources: {}
