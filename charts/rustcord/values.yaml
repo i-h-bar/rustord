@@ -15,6 +15,12 @@ images:
   notifier:
     repository: gitfrog/rustcord-notifier
     tag: latest
+  sync:
+    repository: gitfrog/rustcord-sync
+    tag: latest
+  kubectl:
+    repository: bitnami/kubectl
+    tag: latest
 
 postgres:
   storage: 512Mi
