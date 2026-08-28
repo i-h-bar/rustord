@@ -9,10 +9,16 @@ images:
   redis:
     repository: redis
     tag: 8-alpine
+  bot:
+    repository: gitfrog/rustcord
+    tag: latest
 
 postgres:
   storage: 512Mi
   resources: {}
 
 redis:
+  resources: {}
+
+discordBot:
   resources: {}
