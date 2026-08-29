@@ -212,6 +212,7 @@ spec:
               - matchName: "api.scryfall.com"
               - matchName: "cards.scryfall.io"
               - matchName: "svgs.scryfall.io"
+              - matchName: "data.scryfall.io"
               - matchName: "discord.com"
               - matchName: "postgres-service.default.svc.cluster.local"
     - toEndpoints:
@@ -225,6 +226,7 @@ spec:
         - matchName: "api.scryfall.com"
         - matchName: "cards.scryfall.io"
         - matchName: "svgs.scryfall.io"
+        - matchName: "data.scryfall.io"
         - matchName: "discord.com"
       toPorts:
         - ports:
