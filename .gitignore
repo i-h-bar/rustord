@@ -6,5 +6,5 @@ todo.txt
 *.env
 
 # Bulk data
-default-cards*.json
+default-cards*.json*
 docs/superpowers/*

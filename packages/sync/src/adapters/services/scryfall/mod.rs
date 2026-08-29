@@ -11,6 +11,7 @@ use crate::ports::source::CardSource;
 use async_trait::async_trait;
 use cards_sdk::{CardInfo, Set};
 use data::set::ScryfallSet;
+use flate2::read::GzDecoder;
 use futures::future;
 use governor::clock::DefaultClock;
 use governor::state::{InMemoryState, NotKeyed};
@@ -19,6 +20,7 @@ use normalise::normalise_emoji_name;
 use reqwest::{Client, Response};
 use std::collections::{HashMap, HashSet};
 use std::env;
+use std::io::Read;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use thiserror::Error;
@@ -49,7 +51,30 @@ const DEFAULT_SET_ICON_URL: &str = "https://svgs.scryfall.io/sets/default.svg";
 struct BulkDataEntry {
     #[serde(rename = "type")]
     data_type: String,
-    download_uri: String,
+    jsonl_download_uri: String,
+}
+
+// Scryfall bulk downloads are gzip-compressed JSON Lines (one card object per line),
+// not a single JSON array.
+fn parse_bulk_cards(bytes: &[u8]) -> ScryfallResult<Vec<ScryfallCard>> {
+    let mut decompressed = String::new();
+    GzDecoder::new(bytes)
+        .read_to_string(&mut decompressed)
+        .map_err(|e| {
+            log::warn!("Failed to decompress bulk card data: {e}");
+            ScryfallError::ParseError
+        })?;
+
+    decompressed
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            serde_json::from_str(line).map_err(|e| {
+                log::warn!("Failed to parse bulk card data: {e}");
+                ScryfallError::ParseError
+            })
+        })
+        .collect()
 }
 
 pub struct Scryfall {
@@ -109,10 +134,7 @@ impl Scryfall {
         #[cfg(feature = "local-dev")]
         if let Some(path) = bulk_cache::find_cached() {
             if let Some(bytes) = bulk_cache::load(&path).await {
-                return serde_json::from_slice(&bytes).map_err(|e| {
-                    log::warn!("Failed to parse cached bulk data: {e}");
-                    ScryfallError::ParseError
-                });
+                return parse_bulk_cards(&bytes);
             }
         }
 
@@ -127,7 +149,7 @@ impl Scryfall {
 
         log::info!("Downloading bulk card data");
         let resp = self
-            .get_resp(&entry.download_uri, &self.low_limiter)
+            .get_resp(&entry.jsonl_download_uri, &self.low_limiter)
             .await?;
 
         let bytes = resp.bytes().await.map_err(|e| {
@@ -138,10 +160,7 @@ impl Scryfall {
         #[cfg(feature = "local-dev")]
         bulk_cache::save(&bytes).await;
 
-        serde_json::from_slice(&bytes).map_err(|e| {
-            log::warn!("Failed to parse bulk card data: {e}");
-            ScryfallError::ParseError
-        })
+        parse_bulk_cards(&bytes)
     }
 
     async fn get_resp(&self, url: &str, limiter: &Limiter) -> ScryfallResult<Response> {
@@ -361,5 +380,56 @@ impl CardSource for Scryfall {
         .into_iter()
         .flatten()
         .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flate2::Compression;
+    use flate2::write::GzEncoder;
+    use std::io::Write;
+
+    const BULK_SAMPLE_JSONL: &str = include_str!("test_fixtures/bulk_sample.jsonl");
+
+    fn gzip(bytes: &[u8]) -> Vec<u8> {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(bytes).unwrap();
+        encoder.finish().unwrap()
+    }
+
+    #[test]
+    fn bulk_data_entry_deserializes_current_scryfall_schema() {
+        let manifest_json = r#"{
+            "object": "list",
+            "has_more": false,
+            "data": [
+                {
+                    "object": "bulk_data",
+                    "type": "default_cards",
+                    "jsonl_download_uri": "https://data.scryfall.io/default-cards/default-cards.jsonl.gz"
+                }
+            ]
+        }"#;
+
+        let manifest: ScryfallData<BulkDataEntry> = serde_json::from_str(manifest_json).unwrap();
+        let entry = &manifest.data[0];
+
+        assert_eq!(entry.data_type, "default_cards");
+        assert_eq!(
+            entry.jsonl_download_uri,
+            "https://data.scryfall.io/default-cards/default-cards.jsonl.gz"
+        );
+    }
+
+    #[test]
+    fn parse_bulk_cards_reads_gzipped_jsonl() {
+        let compressed = gzip(BULK_SAMPLE_JSONL.as_bytes());
+
+        let cards = parse_bulk_cards(&compressed).unwrap();
+
+        assert_eq!(cards.len(), 2);
+        assert_eq!(cards[0].name, "Forest");
+        assert_eq!(cards[1].name, "Fury Sliver");
     }
 }
