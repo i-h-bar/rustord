@@ -1,0 +1,238 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: postgres
+spec:
+  endpointSelector:
+    matchLabels:
+      service: postgres
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            type: bot
+            app: discord
+        - matchLabels:
+            type: notifier
+            app: discord
+        - matchLabels:
+            job-name: db-migrate
+        - matchLabels:
+            sync-type: bulk
+        - matchLabels:
+            sync-type: spoiler
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: redis
+spec:
+  endpointSelector:
+    matchLabels:
+      service: redis
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            type: bot
+            app: discord
+      toPorts:
+        - ports:
+            - port: "6379"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: discord-bot
+spec:
+  endpointSelector:
+    matchLabels:
+      type: bot
+      app: discord
+  ingress: []
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchName: "discord.com"
+              - matchName: "gateway.discord.gg"
+              - matchPattern: "*.discord.gg"
+              - matchName: "postgres-service.default.svc.cluster.local"
+              - matchName: "redis-service.default.svc.cluster.local"
+    - toEndpoints:
+        - matchLabels:
+            service: postgres
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            service: redis
+      toPorts:
+        - ports:
+            - port: "6379"
+              protocol: TCP
+    - toFQDNs:
+        - matchName: "discord.com"
+        - matchName: "gateway.discord.gg"
+        - matchPattern: "*.discord.gg"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: notifier
+spec:
+  endpointSelector:
+    matchLabels:
+      type: notifier
+      app: discord
+  ingress: []
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchName: "discord.com"
+              - matchName: "postgres-service.default.svc.cluster.local"
+    - toEndpoints:
+        - matchLabels:
+            service: postgres
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    - toFQDNs:
+        - matchName: "discord.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: db-migrate
+spec:
+  endpointSelector:
+    matchLabels:
+      job-name: db-migrate
+  ingress: []
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            service: postgres
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: sync-jobs
+spec:
+  endpointSelector:
+    matchExpressions:
+      - key: sync-type
+        operator: In
+        values:
+          - bulk
+          - spoiler
+  ingress: []
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchName: "api.scryfall.com"
+              - matchName: "cards.scryfall.io"
+              - matchName: "svgs.scryfall.io"
+              - matchName: "discord.com"
+              - matchName: "postgres-service.default.svc.cluster.local"
+    - toEndpoints:
+        - matchLabels:
+            service: postgres
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    - toFQDNs:
+        - matchName: "api.scryfall.com"
+        - matchName: "cards.scryfall.io"
+        - matchName: "svgs.scryfall.io"
+        - matchName: "discord.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

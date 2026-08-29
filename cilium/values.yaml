@@ -1,0 +1,22 @@
+# Cilium install values for the single-node k3s homelab cluster.
+# Install with (see docs/cilium-install.md for the full procedure):
+#   helm install cilium cilium/cilium --version 1.20.1 -n kube-system -f cilium/values.yaml
+#
+# Cilium's agent runs with hostNetwork: true, and on a single-node k3s
+# install the apiserver is reachable from the node's own loopback (this is
+# the same address k3s's own generated kubeconfig uses). No node-specific
+# IP needs to live in this file. If this cluster ever grows a second
+# control-plane node, k8sServiceHost must change to point at a real
+# load-balanced VIP instead.
+k8sServiceHost: "127.0.0.1"
+k8sServicePort: "6443"
+
+kubeProxyReplacement: true
+
+operator:
+  replicas: 1
+
+hubble:
+  enabled: true
+  relay:
+    enabled: true

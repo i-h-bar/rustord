@@ -2,9 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: sync-jobs
-
 ---
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -13,9 +11,7 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["list"]
-
 ---
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -27,9 +23,7 @@ roleRef:
   kind: Role
   name: sync-job-pod-reader
   apiGroup: rbac.authorization.k8s.io
-
 ---
-
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -43,41 +37,38 @@ spec:
       restartPolicy: Never
       containers:
         - name: db-migrate
-          image: gitfrog/rustcord-sync:latest
+          image: "{{ .Values.images.sync.repository }}:{{ .Values.images.sync.tag }}"
           command: ["sqlx", "migrate", "run"]
           env:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_USER
             - name: POSTGRES_PW
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_PW
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_DB
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_HOST
             - name: DATABASE_URL
               value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PW)@$(POSTGRES_HOST)/$(POSTGRES_DB)"
-
 ---
-
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: bulk-sync
-
 spec:
-  schedule: "0 6 * * 3"  # Wednesday 06:00 UTC
+  schedule: "0 6 * * 3"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   jobTemplate:
@@ -94,7 +85,7 @@ spec:
           restartPolicy: Never
           initContainers:
             - name: wait-for-spoiler-sync
-              image: bitnami/kubectl:latest
+              image: "{{ .Values.images.kubectl.repository }}:{{ .Values.images.kubectl.tag }}"
               command:
                 - sh
                 - -c
@@ -105,66 +96,62 @@ spec:
                   done
           containers:
             - name: bulk-sync
-              image: gitfrog/rustcord-sync:latest
+              image: "{{ .Values.images.sync.repository }}:{{ .Values.images.sync.tag }}"
               command: ["/app/sync", "bulk"]
               env:
                 - name: POSTGRES_USER
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: POSTGRES_USER
                 - name: POSTGRES_PW
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: POSTGRES_PW
                 - name: POSTGRES_DB
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: POSTGRES_DB
                 - name: POSTGRES_HOST
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: POSTGRES_HOST
                 - name: IMAGES_DIR
                   value: /var/mtg_cards
                 - name: BOT_TOKEN
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: BOT_TOKEN
                 - name: APPLICATION_ID
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: APPLICATION_ID
                 - name: USER_AGENT
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: USER_AGENT
                 - name: RUST_LOG
                   value: warn,sync=info,cards_sdk=info
               volumeMounts:
                 - name: images
                   mountPath: /var/mtg_cards
-
           volumes:
             - name: images
               hostPath:
-                path: /var/mtg_cards/
-
+                path: {{ .Values.imagesHostPath }}
 ---
-
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: spoiler-sync
-
 spec:
-  schedule: "0 */4 * * *"  # Every 4 hours
+  schedule: "0 */4 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   jobTemplate:
@@ -181,7 +168,7 @@ spec:
           restartPolicy: Never
           initContainers:
             - name: check-bulk-sync
-              image: bitnami/kubectl:latest
+              image: "{{ .Values.images.kubectl.repository }}:{{ .Values.images.kubectl.tag }}"
               command:
                 - sh
                 - -c
@@ -192,53 +179,52 @@ spec:
                   fi
           containers:
             - name: spoiler-sync
-              image: gitfrog/rustcord-sync:latest
+              image: "{{ .Values.images.sync.repository }}:{{ .Values.images.sync.tag }}"
               command: ["/app/sync", "spoilers"]
               env:
                 - name: POSTGRES_USER
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: POSTGRES_USER
                 - name: POSTGRES_PW
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: POSTGRES_PW
                 - name: POSTGRES_DB
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: POSTGRES_DB
                 - name: POSTGRES_HOST
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: POSTGRES_HOST
                 - name: IMAGES_DIR
                   value: /var/mtg_cards
                 - name: BOT_TOKEN
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: BOT_TOKEN
                 - name: APPLICATION_ID
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: APPLICATION_ID
                 - name: USER_AGENT
                   valueFrom:
                     secretKeyRef:
-                      name: app-secrets
+                      name: {{ .Values.secretName }}
                       key: USER_AGENT
                 - name: RUST_LOG
                   value: warn,sync=info
               volumeMounts:
                 - name: images
                   mountPath: /var/mtg_cards
-
           volumes:
             - name: images
               hostPath:
-                path: /var/mtg_cards/
+                path: {{ .Values.imagesHostPath }}

@@ -5,7 +5,6 @@ metadata:
   labels:
     type: bot
     app: discord
-
 spec:
   replicas: 1
   selector:
@@ -20,49 +19,49 @@ spec:
     spec:
       containers:
         - name: rustcord
-          image: gitfrog/rustcord:latest
+          image: "{{ .Values.images.bot.repository }}:{{ .Values.images.bot.tag }}"
           env:
             - name: BOT_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: BOT_TOKEN
             - name: APPLICATION_ID
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: APPLICATION_ID
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_HOST
             - name: POSTGRES_PW
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_PW
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_USER
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_DB
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: REDIS_URL
             - name: IMAGES_DIR
               value: /var/mtg_cards
             - name: DISCORD_SERVER_URL
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: DISCORD_SERVER_URL
             - name: RUST_LOG
               value: warn,rustcord=info,cards_sdk=info
@@ -70,7 +69,11 @@ spec:
             - name: images
               mountPath: /var/mtg_cards/
               readOnly: true
+          {{- with .Values.discordBot.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       volumes:
         - name: images
           hostPath:
-            path: /var/mtg_cards/
+            path: {{ .Values.imagesHostPath }}

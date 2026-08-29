@@ -20,19 +20,19 @@ tasks:
   migrate:
     cmds:
       - kubectl delete job db-migrate --ignore-not-found
-      - kubectl apply -f k8s/db-management.yaml
+      - helm template rustcord charts/rustcord --show-only templates/db-management.yaml | kubectl apply -f -
       - kubectl wait pod -l job-name=db-migrate --for=condition=Ready --timeout=60s
       - kubectl logs -l job-name=db-migrate -f
 
   stop-k3s: sudo systemctl stop k3s
   start-k3s: sudo systemctl start k3s
-  teardown: kubectl delete -f k8s/
+  teardown: helm uninstall rustcord
 
   up:
     cmds:
       - task: start-k3s
       - task: update-secrets
-      - kubectl apply -f k8s/
+      - helm upgrade --install rustcord charts/rustcord
 
   down:
     cmds:

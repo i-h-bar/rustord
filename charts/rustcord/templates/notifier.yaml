@@ -5,7 +5,6 @@ metadata:
   labels:
     type: notifier
     app: discord
-
 spec:
   replicas: 1
   selector:
@@ -20,32 +19,32 @@ spec:
     spec:
       containers:
         - name: notifier
-          image: gitfrog/rustcord-notifier:latest
+          image: "{{ .Values.images.notifier.repository }}:{{ .Values.images.notifier.tag }}"
           env:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_USER
             - name: POSTGRES_PW
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_PW
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_DB
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: POSTGRES_HOST
             - name: BOT_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: app-secrets
+                  name: {{ .Values.secretName }}
                   key: BOT_TOKEN
             - name: IMAGES_DIR
               value: /var/mtg_cards
@@ -55,7 +54,11 @@ spec:
             - name: images
               mountPath: /var/mtg_cards/
               readOnly: true
+          {{- with .Values.notifier.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       volumes:
         - name: images
           hostPath:
-            path: /var/mtg_cards/
+            path: {{ .Values.imagesHostPath }}

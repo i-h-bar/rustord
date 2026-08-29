@@ -4,7 +4,6 @@ metadata:
   name: redis
   labels:
     service: redis
-
 spec:
   replicas: 1
   selector:
@@ -17,17 +16,18 @@ spec:
     spec:
       containers:
         - name: redis
-          image: redis:8-alpine
+          image: "{{ .Values.images.redis.repository }}:{{ .Values.images.redis.tag }}"
           ports:
             - containerPort: 6379
-
+          {{- with .Values.redis.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
   name: redis-service
-
 spec:
   selector:
     service: redis
