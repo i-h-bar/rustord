@@ -11,11 +11,7 @@ pub fn find_cached() -> Option<PathBuf> {
         let path = entry.path();
         let name = path.file_name()?.to_string_lossy().into_owned();
 
-        if !name.starts_with("default-cards-")
-            || !Path::new(&name)
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
-        {
+        if !name.starts_with("default-cards-") || !name.ends_with(".jsonl.gz") {
             continue;
         }
 
@@ -44,7 +40,7 @@ pub async fn load(path: &Path) -> Option<Vec<u8>> {
 pub async fn save(bytes: &[u8]) {
     let now = time::OffsetDateTime::now_utc();
     let filename = format!(
-        "default-cards-{:04}{:02}{:02}{:02}{:02}{:02}+0000.json",
+        "default-cards-{:04}{:02}{:02}{:02}{:02}{:02}+0000.jsonl.gz",
         now.year(),
         u8::from(now.month()),
         now.day(),

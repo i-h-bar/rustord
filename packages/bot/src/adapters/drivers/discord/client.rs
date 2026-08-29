@@ -22,8 +22,7 @@ impl Discord {
         Sub: SpoilerSubscription + Send + Sync + 'static,
     {
         let token = env::var("BOT_TOKEN").expect("Bot token wasn't in env vars");
-        let intents = GatewayIntents::GUILD_MESSAGES
-            | GatewayIntents::DIRECT_MESSAGES;
+        let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::DIRECT_MESSAGES;
 
         let client = DiscordClient::builder(&token, intents)
             .event_handler(app)
